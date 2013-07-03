@@ -908,12 +908,12 @@ class Server():
 				}
 			},
 			"loggers": {
-				#"octoprint.timelapse": {
-				#	"level": "DEBUG"
-				#},
-				#"octoprint.events": {
-				#	"level": "DEBUG"
-				#},
+				"octoprint.timelapse": {
+					"level": "DEBUG"
+				},
+				"octoprint.events": {
+					"level": "DEBUG"
+				},
 				"SERIAL": {
 					"level": "CRITICAL",
 					"handlers": ["serialFile"],

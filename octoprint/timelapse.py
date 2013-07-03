@@ -199,7 +199,7 @@ class ZTimelapse(Timelapse):
 
 	def eventSubscriptions(self):
 		return [
-			("ZChange", self._onZChange)
+			("LayerChange", self._onZChange)
 		]
 
 	def _onZChange(self, event, payload):

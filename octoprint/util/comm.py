@@ -116,9 +116,13 @@ class MachineCom(object):
 		self._targetTemp = 0
 		self._bedTargetTemp = 0
 		self._commandQueue = queue.Queue()
-		self._currentZ = None
 		self._heatupWaitStartTime = 0
 		self._heatupWaitTimeLost = 0.0
+
+		self._currentZ = None
+		self._lastE = None
+		self._layer = None
+		self._relativeE = False
 
 		self._alwaysSendChecksum = settings().getBoolean(["feature", "alwaysSendChecksum"])
 		self._currentLine = 0
@@ -852,6 +856,7 @@ class MachineCom(object):
 			self.close(True)
 
 	def _gcode_G0(self, cmd):
+		z = self._currentZ
 		if 'Z' in cmd:
 			try:
 				z = float(re.search('Z([0-9\.]*)', cmd).group(1))
@@ -860,8 +865,31 @@ class MachineCom(object):
 					self._callback.mcZChange(z)
 			except ValueError:
 				pass
+		if "E" in cmd:
+			try:
+				e = float(re.search("E([+\-]?[0-9\.]*)", cmd).group(1))
+				if ((self._relativeE and e > 0) or (not self._relativeE and e > self._lastE)) and self._layer != z:
+					self._layer = z
+					eventManager().fire("LayerChange", self._layer)
+				self._lastE = e
+			except ValueError:
+				pass
 		return cmd
 	_gcode_G1 = _gcode_G0
+
+	def _gcode_G90(self, cmd):
+		self._relativeE = False
+		return cmd
+	_gcode_M82 = _gcode_G90
+
+	def _gcode_G91(self, cmd):
+		self._relativeE = True
+		return cmd
+	_gcode_M83 = _gcode_G91
+
+	def _gcode_G92(self, cmd):
+		# TODO what to do here regarding absolute/relative positioning?
+		return cmd
 
 	def _gcode_M0(self, cmd):
 		self.setPause(True)
