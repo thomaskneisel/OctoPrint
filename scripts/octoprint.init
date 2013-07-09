@@ -13,13 +13,13 @@
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: Run octoprint
-# Description:       Octoprint provides a responsive web interface for
+# Description:       OctoPrint provides a responsive web interface for
 #                    controlling a 3D printer
 ### END INIT INFO
 
 
 # OctoPrint's run script
-DAEMON=/home/pi/OctoPrint/run
+DAEMON=/usr/bin/octoprint
 
 # Port to use
 PORT=5000
