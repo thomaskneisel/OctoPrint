@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 
-print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-print "!!! You are using an old startup method for OctoPrint. !!!"
-print "!!! Please perform 'sudo python setup.py install' and  !!!"
-print "!!! use 'octoprint' instead                            !!!"
-print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-print
+print """
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! You are using an old startup method for OctoPrint. !!!
+!!! Please perform 'sudo python setup.py install' and  !!!
+!!! use the 'octoprint' script instead.                !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+"""
 
 import sys
 sys.path.append("src")
 
-from octoprint import main
-main()
+from octoprint import app
+app.main()
