@@ -12,5 +12,5 @@ print """
 import sys
 sys.path.append("src")
 
-from octoprint import app
-app.main()
+import octoprint
+octoprint.main()
