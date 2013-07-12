@@ -4,7 +4,7 @@ print """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! You are using an old startup method for OctoPrint. !!!
 !!! Please perform 'sudo python setup.py install' and  !!!
-!!! use the 'octoprint' script instead.                !!!
+!!! use the 'octoprint' executable instead.            !!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 """
