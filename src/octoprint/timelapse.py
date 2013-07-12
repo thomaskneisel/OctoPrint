@@ -206,16 +206,27 @@ class ZTimelapse(Timelapse):
 		self.captureImage()
 
 class TimedTimelapse(Timelapse):
-	def __init__(self, interval=1):
+	def __init__(self, interval=1, postroll=0):
 		Timelapse.__init__(self)
+		
 		self._interval = interval
+		self._postroll = postroll
+		
 		if self._interval < 1:
 			self._interval = 1 # force minimum interval of 1s
+		if self._postroll < 0:
+			self._postroll = 0 # force minimum postroll of 0s
+		
 		self._timerThread = None
+		self._postRollTimerThread = None
+		
 		self._logger.debug("TimedTimelapse initialized")
 
 	def interval(self):
 		return self._interval
+
+	def postroll(self):
+		return self._postroll
 
 	def onPrintStarted(self, event, payload):
 		Timelapse.onPrintStarted(self, event, payload)
@@ -227,11 +238,24 @@ class TimedTimelapse(Timelapse):
 		self._timerThread.start()
 
 	def onPrintDone(self, event, payload):
-		Timelapse.onPrintDone(self, event, payload)
 		self._timerThread = None
+
+		self._postRollTimerThread = threading.Thread(target=self._postRollWorker, args=(event, payload))
+		self._postRollTimerThread.daemon = True
+		self._postRollTimerThread.start()
 
 	def _timerWorker(self):
 		self._logger.debug("Starting timer for interval based timelapse")
-		while self._inTimelapse:
+		while self._inTimelapse and self._postRollTimerThread is None:
 			self.captureImage()
 			time.sleep(self._interval)
+
+	def _postRollWorker(self, event, payload):
+		if self._postroll > 0:
+			self._logger.debug("Starting post roll")
+			absolutePostroll = time.time() + self._postroll
+			while time.time() < absolutePostroll:
+				self.captureImage()
+				time.sleep(self._interval)
+		Timelapse.onPrintDone(self, event, payload)
+		self._postRollTimerThread = None

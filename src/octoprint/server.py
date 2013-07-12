@@ -428,7 +428,8 @@ def getTimelapseData():
 	elif timelapse is not None and isinstance(timelapse, octoprint.timelapse.TimedTimelapse):
 		type = "timed"
 		additionalConfig = {
-			"interval": timelapse.interval()
+			"interval": timelapse.interval(),
+			"postroll": timelapse.postroll()
 		}
 
 	files = octoprint.timelapse.getFinishedTimelapses()
@@ -471,12 +472,18 @@ def setTimelapseConfig():
 			timelapse = octoprint.timelapse.ZTimelapse()
 		elif "timed" == type:
 			interval = 10
+			postroll = 0
 			if request.values.has_key("interval"):
 				try:
 					interval = int(request.values["interval"])
 				except ValueError:
 					pass
-			timelapse = octoprint.timelapse.TimedTimelapse(interval)
+			if request.values.has_key("postroll"):
+				try:
+					postroll = int(request.values["postroll"])
+				except ValueError:
+					pass
+			timelapse = octoprint.timelapse.TimedTimelapse(interval, postroll)
 
 	return getTimelapseData()
 
@@ -922,9 +929,9 @@ class Server():
 				}
 			},
 			"loggers": {
-				#"octoprint.timelapse": {
-				#	"level": "DEBUG"
-				#},
+				"octoprint.timelapse": {
+					"level": "DEBUG"
+				},
 				#"octoprint.events": {
 				#	"level": "DEBUG"
 				#},

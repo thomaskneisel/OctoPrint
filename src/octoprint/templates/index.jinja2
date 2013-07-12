@@ -529,7 +529,13 @@
                                 <div id="webcam_timelapse_timedsettings" data-bind="visible: intervalInputEnabled()">
                                     <label for="webcam_timelapse_interval">Interval</label>
                                     <div class="input-append">
-                                        <input type="text" class="input-mini" id="webcam_timelapse_interval" data-bind="value: timelapseTimedInterval, enable: isOperational() && !isPrinting() && loginState.isUser()">
+                                        <input type="number" min="1" class="input-mini" id="webcam_timelapse_interval" data-bind="value: timelapseTimedInterval, enable: isOperational() && !isPrinting() && loginState.isUser()">
+                                        <span class="add-on">sec</span>
+                                    </div>
+
+                                    <label for="webcam_timelapse_postroll">Post-Roll</label>
+                                    <div class="input-append">
+                                        <input type="number" min="0" class="input-mini" id="webcam_timelapse_postroll" data-bind="value: timelapseTimedPostroll, enable: isOperational() && !isPrinting() && loginState.isUser()">
                                         <span class="add-on">sec</span>
                                     </div>
                                 </div>

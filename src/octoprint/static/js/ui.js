@@ -965,6 +965,7 @@ function TimelapseViewModel(loginStateViewModel) {
 
     self.timelapseType = ko.observable(undefined);
     self.timelapseTimedInterval = ko.observable(undefined);
+    self.timelapseTimedPostroll = ko.observable(undefined);
 
     self.isErrorOrClosed = ko.observable(undefined);
     self.isOperational = ko.observable(undefined);
@@ -1026,10 +1027,16 @@ function TimelapseViewModel(loginStateViewModel) {
         self.timelapseType(response.type);
         self.listHelper.updateItems(response.files);
 
-        if (response.type == "timed" && response.config && response.config.interval) {
-            self.timelapseTimedInterval(response.config.interval)
+        if (response.type == "timed" && response.config) {
+            if (response.config.interval) {
+                self.timelapseTimedInterval(response.config.interval);
+            }
+            if (response.config.postroll) {
+                self.timelapseTimedPostroll(response.config.postroll);
+            }
         } else {
-            self.timelapseTimedInterval(undefined)
+            self.timelapseTimedInterval(undefined);
+            self.timelapseTimedPostroll(undefined);
         }
     }
 
@@ -1067,6 +1074,7 @@ function TimelapseViewModel(loginStateViewModel) {
 
         if (self.timelapseType() == "timed") {
             data["interval"] = self.timelapseTimedInterval();
+            data["postroll"] = self.timelapseTimedPostroll();
         }
 
         $.ajax({
