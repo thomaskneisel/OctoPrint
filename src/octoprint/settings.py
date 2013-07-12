@@ -51,7 +51,8 @@ default_settings = {
 		"gCodeVisualizer": True,
 		"waitForStartOnConnect": False,
 		"alwaysSendChecksum": False,
-		"sdSupport": True
+		"sdSupport": True,
+		"virtualPrinter": False
 	},
 	"folder": {
 		"uploads": None,

@@ -53,7 +53,7 @@ def getClass(name):
 
 
 def isDevVersion():
-	gitPath = os.path.abspath(os.path.join(os.path.split(os.path.abspath(__file__))[0], "../../.git"))
+	gitPath = os.path.abspath(os.path.join(os.path.split(os.path.abspath(__file__))[0], "../../../.git"))
 	return os.path.exists(gitPath)
 
 

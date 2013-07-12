@@ -19,7 +19,7 @@ from octoprint.util.avr_isp import ispBase
 
 from octoprint.settings import settings
 from octoprint.events import eventManager
-from octoprint.util import isDevVersion, getExceptionString, getNewTimeout
+from octoprint.util import getExceptionString, getNewTimeout
 from octoprint.util.virtual import VirtualPrinter
 
 try:
@@ -49,7 +49,7 @@ def serialList():
 	if prev in baselist:
 		baselist.remove(prev)
 		baselist.insert(0, prev)
-	if isDevVersion():
+	if settings().getBoolean(["feature", "virtualPrinter"]):
 		baselist.append("VIRTUAL")
 	return baselist
 
