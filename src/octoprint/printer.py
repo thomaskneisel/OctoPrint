@@ -8,13 +8,12 @@ import threading
 import copy
 import os
 
-#import logging, logging.config
-
 import octoprint.util.comm as comm
 import octoprint.util as util
 
 from octoprint.settings import settings
 from octoprint.events import eventManager
+
 
 def getConnectionOptions():
 	"""
@@ -27,6 +26,7 @@ def getConnectionOptions():
 		"baudratePreference": settings().getInt(["serial", "baudrate"]),
 		"autoconnect": settings().getBoolean(["serial", "autoconnect"])
 	}
+
 
 class Printer():
 	def __init__(self, gcodeManager):
@@ -514,6 +514,7 @@ class Printer():
 	def isLoading(self):
 		return self._gcodeLoader is not None
 
+
 class GcodeLoader(threading.Thread):
 	"""
 	 The GcodeLoader takes care of loading a gcode-File from disk and parsing it into a gcode object in a separate
@@ -559,37 +560,6 @@ class GcodeLoader(threading.Thread):
 	def _onParsingProgress(self, progress):
 		self._progressCallback(self._filename, progress, "parsing")
 
-class SdFileStreamer(threading.Thread):
-	def __init__(self, comm, filename, file, progressCallback, finishCallback):
-		threading.Thread.__init__(self)
-
-		self._comm = comm
-		self._filename = filename
-		self._file = file
-		self._progressCallback = progressCallback
-		self._finishCallback = finishCallback
-
-	def run(self):
-		if self._comm.isBusy():
-			return
-
-		name = self._filename[:self._filename.rfind(".")]
-		sdFilename = name[:8].lower() + ".gco"
-		try:
-			size = os.stat(self._file).st_size
-			with open(self._file, "r") as f:
-				self._comm.startSdFileTransfer(sdFilename)
-				for line in f:
-					if ";" in line:
-						line = line[0:line.find(";")]
-					line = line.strip()
-					if len(line) > 0:
-						self._comm.sendCommand(line)
-						time.sleep(0.001) # do not send too fast
-					self._progressCallback(sdFilename, float(f.tell()) / float(size))
-		finally:
-			self._comm.endSdFileTransfer(sdFilename)
-			self._finishCallback(sdFilename)
 
 class StateMonitor(object):
 	def __init__(self, ratelimit, updateCallback, addTemperatureCallback, addLogCallback, addMessageCallback):

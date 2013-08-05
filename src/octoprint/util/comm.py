@@ -27,6 +27,7 @@ try:
 except:
 	pass
 
+
 def serialList():
 	baselist=[]
 	if os.name=="nt":
@@ -53,6 +54,7 @@ def serialList():
 		baselist.append("VIRTUAL")
 	return baselist
 
+
 def baudrateList():
 	ret = [250000, 230400, 115200, 57600, 38400, 19200, 9600]
 	prev = settings().getInt(["serial", "baudrate"])
@@ -60,6 +62,7 @@ def baudrateList():
 		ret.remove(prev)
 		ret.insert(0, prev)
 	return ret
+
 
 gcodeToEvent = {
 	"M226": "Waiting",  # pause for user input
@@ -74,6 +77,7 @@ gcodeToEvent = {
 	"M80": "PowerOn",
 	"M81": "PowerOff"
 }
+
 
 class MachineCom(object):
 	STATE_NONE = 0
@@ -313,7 +317,6 @@ class MachineCom(object):
 		if self._currentFile is None:
 			raise ValueError("No file selected for printing")
 
-		self._printSection = "CUSTOM"
 		self._changeState(self.STATE_PRINTING)
 		eventManager().fire("PrintStarted", self._currentFile.getFilename())
 
@@ -357,16 +360,19 @@ class MachineCom(object):
 			self._callback.mcFileSelected(filename, self._currentFile.getFilesize(), False)
 
 	def cancelPrint(self):
-		if not self.isOperational() or self.isStreaming():
+		if not self.isOperational():
 			return
 
 		self._changeState(self.STATE_OPERATIONAL)
 
-		if self.isSdFileSelected():
-			self.sendCommand("M25")    # pause print
-			self.sendCommand("M26 S0") # reset position in file to byte 0
+		if self.isStreaming():
+			self.sendCommand("M29")
+		else:
+			if self.isSdFileSelected():
+				self.sendCommand("M25")    # pause print
+				self.sendCommand("M26 S0") # reset position in file to byte 0
 
-		eventManager().fire("PrintCancelled")
+			eventManager().fire("PrintCancelled")
 
 	def setPause(self, pause):
 		if self.isStreaming():
@@ -492,19 +498,22 @@ class MachineCom(object):
 		while True:
 			try:
 				line = self._readline()
-				if line == None:
+				if line is None:
 					break
 
 				##~~ Error handling
-				# No matter the state, if we see an error, goto the error state and store the error for reference.
-				if line.startswith('Error:'):
-					#Oh YEAH, consistency.
-					# Marlin reports an MIN/MAX temp error as "Error:x\n: Extruder switched off. MAXTEMP triggered !\n"
-					#	But a bed temp error is reported as "Error: Temperature heated bed switched off. MAXTEMP triggered !!"
-					#	So we can have an extra newline in the most common case. Awesome work people.
-					if re.match('Error:[0-9]\n', line):
+				# No matter the state, if we see an error, go to the error state and store the error for reference.
+				if line.startswith("Error:"):
+					# Marlin reports MIN/MAX temp error for extruder as
+					#     Error:[0-9]
+					#     : Extruder switched off. MAXTEMP triggered !
+					# MIN/MAX temp error for bed is
+					#     Error: Temperature heated bed switched off. MAXTEMP triggered !!
+					# Therefore if we detect the former, we need to read in the next line as well.
+					if re.match("Error:[0-9]\n", line):
 						line = line.rstrip() + self._readline()
-					#Skip the communication errors, as those get corrected.
+
+					# Skip the communication errors, as those get corrected by the resend mechanism below
 					if 'checksum mismatch' in line \
 							or 'Wrong checksum' in line \
 							or 'Line Number is not Last Line Number' in line \
@@ -579,7 +588,6 @@ class MachineCom(object):
 					eventManager().fire("FileSelected", self._currentFile.getFilename())
 				elif 'Writing to file' in line:
 					# anwer to M28, at least on Marlin, Repetier and Sprinter: "Writing to file: %s"
-					self._printSection = "CUSTOM"
 					self._changeState(self.STATE_PRINTING)
 				elif 'Done printing file' in line:
 					# printer is reporting file finished printing
@@ -589,7 +597,14 @@ class MachineCom(object):
 					eventManager().fire("PrintDone")
 
 				##~~ Message handling
-				elif line.strip() != '' and line.strip() != 'ok' and not line.startswith("wait") and not line.startswith('Resend:') and line != 'echo:Unknown command:""\n' and self.isOperational():
+				# push anything that's not an ok, a wait, a resend request or a unknown command message to the
+				# message queue
+				elif line.strip() != "" \
+						and line.strip() != "ok" \
+						and not line.startswith("wait") \
+						and not line.startswith("Resend:") \
+						and line != "echo:Unknown command:\"\"\n" \
+						and self.isOperational():
 					self._callback.mcMessage(line)
 
 				##~~ Parsing for feedback commands
@@ -599,8 +614,9 @@ class MachineCom(object):
 							match = matcher.search(line)
 							if match is not None:
 								self._callback.mcReceivedRegisteredMessage(name, str.format(template, *(match.groups("n/a"))))
-						except:
+						except :
 							# ignored on purpose
+							self._logger.exception("Something's wrong with a feedback control")
 							pass
 
 				##~~ Parsing for pause triggers
@@ -751,21 +767,10 @@ class MachineCom(object):
 			line = self._currentFile.getNext()
 			if line is None:
 				if self.isStreaming():
-					self._sendCommand("M29")
-					filename = self._currentFile.getFilename()
-					self._currentFile = None
-					self._callback.mcFileTransferDone()
-					self._changeState(self.STATE_OPERATIONAL)
-					eventManager().fire("TransferDone", filename)
+					self._signalStreamingDone()
 				else:
-					self._callback.mcPrintjobDone()
-					self._changeState(self.STATE_OPERATIONAL)
-					eventManager().fire("PrintDone", self._currentFile.getFilename())
+					self._signalPrintjobDone()
 				return
-
-			if type(line) is tuple:
-				self._printSection = line[1]
-				line = line[0]
 
 			self._sendCommand(line, True)
 			self._callback.mcProgress()
@@ -925,6 +930,19 @@ class MachineCom(object):
 
 		return None
 
+	def _signalPrintjobDone(self):
+		self._callback.mcPrintjobDone()
+		self._changeState(self.STATE_OPERATIONAL)
+		eventManager().fire("PrintDone", self._currentFile.getFilename())
+
+	def _signalStreamingDone(self):
+		self._sendCommand("M29")
+		filename = self._currentFile.getFilename()
+		self._currentFile = None
+		self._callback.mcFileTransferDone()
+		self._changeState(self.STATE_OPERATIONAL)
+		eventManager().fire("TransferDone", filename)
+
 ### MachineCom callback ################################################################################################
 
 class MachineComPrintCallback(object):
@@ -1039,7 +1057,6 @@ class PrintingGcodeFileInformation(PrintingFileInformation):
 		self._filehandle = None
 		self._lineCount = None
 		self._firstLine = None
-		self._prevLineType = None
 
 		if not os.path.exists(self._filename) or not os.path.isfile(self._filename):
 			raise IOError("File %s does not exist" % self._filename)
@@ -1089,17 +1106,15 @@ class PrintingGcodeFileInformation(PrintingFileInformation):
 			raise e
 
 	def _processLine(self, line):
-		lineType = self._prevLineType
-		if line.startswith(";TYPE:"):
-			lineType = line[6:].strip()
+		# strip line comments
 		if ";" in line:
 			line = line[0:line.find(";")]
+
+		# trim whitespace
 		line = line.strip()
+
 		if len(line) > 0:
-			if self._prevLineType != lineType:
-				return line, lineType
-			else:
-				return line
+			return line
 		else:
 			return None
 
