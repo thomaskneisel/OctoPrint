@@ -11,6 +11,7 @@ import threading
 import Queue as queue
 import logging
 import serial
+import traceback
 
 from collections import deque
 
@@ -19,7 +20,7 @@ from octoprint.util.avr_isp import ispBase
 
 from octoprint.settings import settings
 from octoprint.events import eventManager
-from octoprint.util import isDevVersion, getExceptionString, getNewTimeout
+from octoprint.util import isDevVersion, getExceptionString, getNewTimeout, loggerAsFile
 from octoprint.util.virtual import VirtualPrinter
 
 try:
@@ -168,7 +169,6 @@ class MachineCom(object):
 
 	def _addToLastLines(self, cmd):
 		self._lastLines.append(cmd)
-		self._logger.debug("Got %d lines of history in memory" % len(self._lastLines))
 
 	##~~ getters
 
@@ -994,6 +994,7 @@ class PrintingFileInformation(object):
 	"""
 
 	def __init__(self, filename):
+		self._logger = logging.getLogger(__name__)
 		self._filename = filename
 		self._filepos = 0
 		self._filesize = None
@@ -1060,6 +1061,8 @@ class PrintingGcodeFileInformation(PrintingFileInformation):
 		self._firstLine = None
 		self._prevLineType = None
 
+		self._unsetFilehandle()
+
 		if not os.path.exists(self._filename) or not os.path.isfile(self._filename):
 			raise IOError("File %s does not exist" % self._filename)
 		self._filesize = os.stat(self._filename).st_size
@@ -1091,8 +1094,10 @@ class PrintingGcodeFileInformation(PrintingFileInformation):
 					return None
 				line = self._filehandle.readline()
 				if not line:
+					# EOF
 					self._filehandle.close()
-					self._filehandle = None
+					self._unsetFilehandle()
+					return None
 				processedLine = self._processLine(line)
 			self._lineCount += 1
 			self._filepos = self._filehandle.tell()
@@ -1104,7 +1109,7 @@ class PrintingGcodeFileInformation(PrintingFileInformation):
 		except Exception as (e):
 			if self._filehandle is not None:
 				self._filehandle.close()
-				self._filehandle = None
+				self._unsetFilehandle()
 			raise e
 
 	def _processLine(self, line):
@@ -1121,6 +1126,11 @@ class PrintingGcodeFileInformation(PrintingFileInformation):
 				return line
 		else:
 			return None
+
+	def _unsetFilehandle(self):
+		self._logger.debug("Unsetting filehandle, stack trace: ")
+		traceback.print_stack(None, None, loggerAsFile(self._logger, logging.INFO))
+		self._filehandle = None
 
 class StreamingGcodeFileInformation(PrintingGcodeFileInformation):
 	pass
